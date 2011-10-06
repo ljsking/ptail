@@ -12,6 +12,11 @@ using namespace log4cplus;
 hdfsFS fs;
 Logger logger = Logger::getInstance("main");
 
+/*
+@return: pos when success.
+         -1: error
+         -2: no more length to read.
+*/
 int tail(const char* readPath, tSize offset) {
     char buffer[BUFFER_SIZE];
     tSize size;
@@ -38,8 +43,7 @@ int tail(const char* readPath, tSize offset) {
     length_for_reading = filesize - offset;
     if( length_for_reading <= 0 ) {
         LOG4CPLUS_ERROR(logger, "there is no length for reading: " << length_for_reading);
-        result = -1;
-        sleep(1);
+        result = -2;
         goto FILE_CLOSE;
     } else {
         if( 0 > hdfsSeek(fs, readFile, offset) ) {
@@ -73,6 +77,14 @@ RETURN:
     return result;
 }
 
+int getLastFile(const char *dir, char *result) {
+    int numEntries;
+    hdfsFileInfo *info = hdfsListDirectory(fs, "/scribedata/bmt/tmove09-1.nm", &numEntries);
+    printf("numEntries: %d\n", numEntries);
+    printf("name: %s\n", info[numEntries-1].mName);
+    hdfsFreeFileInfo(info, numEntries);
+}
+
 int main(int argc, char **argv) {
     SharedAppenderPtr append_1(
         new RollingFileAppender(LOG4CPLUS_TEXT("Test.log"), 1024*1024*1024*1024, 5));
@@ -100,6 +112,10 @@ int main(int argc, char **argv) {
     while(1) {
         tOffset newOffset = tail(readPath, offset);
         offset = std::max(newOffset, offset);
+        if (-2 == newOffset) {
+            LOG4CPLUS_DEBUG(logger, "sleep");
+            sleep(1);
+        }
     }
 }
 
