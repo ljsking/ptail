@@ -35,7 +35,7 @@ for line in sys.stdin:
 		if 10 < (datetime.now() - monitoring_start).seconds:
 			monitoring_start = datetime.now()
 			print >>sys.stderr, "total counts", read_count
-			print >>sys.stderr, "avg elapsed", (summed_elapsed/read_count)
+			print >>sys.stderr, "avg elapsed %f ms"%(summed_elapsed/read_count/1000.)
 			read_count = 0
 			summed_elapsed = 0
 				
