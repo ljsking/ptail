@@ -5,12 +5,15 @@
 #include <log4cplus/configurator.h>
 #include <log4cplus/fileappender.h>
 
-#define BUFFER_SIZE ( 1024 * 1024 ) 
+#define BUFFER_SIZE ( 1024 * 1024 * 1024) 
+#define ROTATE_SIZE ( 500000000 )
 
 using namespace log4cplus;
+using namespace std;
 
 hdfsFS fs;
 Logger logger = Logger::getInstance("main");
+string fs_prefix("hdfs://tloghd04-1.nm.nhnsystem.com:9000");
 
 /*
 @return: pos when success.
@@ -77,12 +80,15 @@ RETURN:
     return result;
 }
 
-int getLastFile(const char *dir, char *result) {
+string getLastFile(const char *dir) {
     int numEntries;
-    hdfsFileInfo *info = hdfsListDirectory(fs, "/scribedata/bmt/tmove09-1.nm", &numEntries);
-    printf("numEntries: %d\n", numEntries);
-    printf("name: %s\n", info[numEntries-1].mName);
+    hdfsFileInfo *info = hdfsListDirectory(fs, dir, &numEntries);
+    LOG4CPLUS_DEBUG(logger, "numEntries: "<<numEntries);
+    string fullPath(info[numEntries-1].mName);
+    LOG4CPLUS_DEBUG(logger, "name: "<<fullPath);
     hdfsFreeFileInfo(info, numEntries);
+    string result = fullPath.substr(fs_prefix.length(), fullPath.length()-fs_prefix.length());
+    return result;
 }
 
 int main(int argc, char **argv) {
@@ -98,9 +104,11 @@ int main(int argc, char **argv) {
 
     fs = hdfsConnectNewInstance("tloghd01-2.nm.nhnsystem.com", 9000);
     const char* readPath = argv[1];
-    hdfsFile readFile = hdfsOpenFile(fs, readPath, O_RDONLY, 0, 0, 0);
+    string fullpath = getLastFile(readPath);
+    hdfsFile readFile = hdfsOpenFile(fs, fullpath.c_str(), O_RDONLY, 0, 0, 0);
+    LOG4CPLUS_INFO(logger, "Read file "<<fullpath);
     if(!readFile) {
-        fprintf(stderr, "Failed to open %s for reading!\n", readPath);
+        fprintf(stderr, "Failed to open %s for reading!\n", fullpath.c_str());
         exit(-1);
     }
     int filesize = hdfsAvailable(fs, readFile);
@@ -110,9 +118,18 @@ int main(int argc, char **argv) {
     hdfsCloseFile(fs, readFile);
 
     while(1) {
-        tOffset newOffset = tail(readPath, offset);
+        tOffset newOffset = tail(fullpath.c_str(), offset);
         offset = std::max(newOffset, offset);
         if (-2 == newOffset) {
+            if (offset > ROTATE_SIZE) {
+                string new_fullpath = getLastFile(readPath);
+                if (new_fullpath != fullpath) {
+                    fullpath = new_fullpath;
+                    offset = 0;
+                    LOG4CPLUS_INFO(logger, "Change file:"<<fullpath);
+                    continue;
+                }
+            }
             LOG4CPLUS_DEBUG(logger, "sleep");
             sleep(1);
         }
