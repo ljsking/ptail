@@ -2,6 +2,7 @@ all: ptail test
 
 ptail: src/ptail.cpp
 	g++ -o ptail src/ptail.cpp -I/usr/java/latest/include/ -I/usr/java/latest/include/linux -I/usr/local/include -lhdfs -llog4cplus
+	cp ptail ./bin
 
 test: gtest test_lastest_file.o
 	g++ -o test_main test_lastest_file.o gtest-all.o gtest_main.o -lpthread
