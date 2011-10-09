@@ -5,7 +5,7 @@
 #include <log4cplus/configurator.h>
 #include <log4cplus/fileappender.h>
 
-#define BUFFER_SIZE ( 1024 * 1024 * 1024) 
+#define BUFFER_SIZE ( 1024 * 1024 * 512) 
 #define ROTATE_SIZE ( 500000000 )
 
 using namespace log4cplus;
@@ -20,8 +20,7 @@ string fs_prefix("hdfs://tloghd04-1.nm.nhnsystem.com:9000");
          -1: error
          -2: no more length to read.
 */
-int tail(const char* readPath, tSize offset) {
-    char buffer[BUFFER_SIZE];
+int tail(const char* readPath, tSize offset, char *buffer) {
     tSize size;
     int filesize;
     int length_for_reading;
@@ -61,7 +60,7 @@ int tail(const char* readPath, tSize offset) {
             fprintf(stdout, buffer);
             fflush(stdout);
             if ( size < 0 ) {
-                LOG4CPLUS_ERROR(logger, "read size is less than 0: " << size);
+                LOG4CPLUS_ERROR(logger, "read size is less than 0: " << size << " at offset: " << offset);
                 result = -1;
                 goto FILE_CLOSE;
             }
@@ -88,10 +87,12 @@ string getLastFile(const char *dir) {
     LOG4CPLUS_DEBUG(logger, "name: "<<fullPath);
     hdfsFreeFileInfo(info, numEntries);
     string result = fullPath.substr(fs_prefix.length(), fullPath.length()-fs_prefix.length());
+    fprintf(stderr, "Open file: %s\n",result.c_str());
     return result;
 }
 
 int main(int argc, char **argv) {
+    char *buffer = new char[BUFFER_SIZE];
     SharedAppenderPtr append_1(
         new RollingFileAppender(LOG4CPLUS_TEXT("Test.log"), 1024*1024*1024*1024, 5));
     append_1->setName(LOG4CPLUS_TEXT("First"));
@@ -114,11 +115,10 @@ int main(int argc, char **argv) {
     int filesize = hdfsAvailable(fs, readFile);
     tOffset offset = filesize > 1024 ? filesize-1024: 0;
     int totalSize = filesize-offset;
-    char buffer[BUFFER_SIZE];
     hdfsCloseFile(fs, readFile);
 
     while(1) {
-        tOffset newOffset = tail(fullpath.c_str(), offset);
+        tOffset newOffset = tail(fullpath.c_str(), offset, buffer);
         offset = std::max(newOffset, offset);
         if (-2 == newOffset) {
             if (offset > ROTATE_SIZE) {
@@ -134,5 +134,6 @@ int main(int argc, char **argv) {
             sleep(1);
         }
     }
+    delete [] buffer;
 }
 
