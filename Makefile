@@ -1,7 +1,7 @@
 all: ptail test
 
 ptail: src/ptail.cpp
-	g++ -o ptail src/ptail.cpp -I/usr/java/latest/include/ -I/usr/java/latest/include/linux -I/usr/local/include -lhdfs -llog4cplus
+	g++ -o ptail src/ptail.cpp -I/usr/java/latest/include/ -I/usr/java/latest/include/linux -I/usr/local/include -lhdfs -m64
 	cp ptail ./bin
 
 test: gtest test_lastest_file.o
