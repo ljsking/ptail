@@ -1,0 +1,6 @@
+Test.log*
+*.swp
+*.log
+*.o
+ptail
+test_main
