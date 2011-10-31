@@ -1,7 +1,9 @@
+JAVA_HOME=/home1/irteam/apps/jdk
+
 all: ptail test
 
 ptail: src/ptail.cpp
-	g++ -o ptail src/ptail.cpp -I/usr/java/latest/include/ -I/usr/java/latest/include/linux -I/usr/local/include -lhdfs -m64
+	g++ -o ptail src/ptail.cpp -I$(JAVA_HOME)/include/ -I$(JAVA_HOME)/include/linux -I/usr/local/include -lhdfs -m64
 	cp ptail ./bin
 
 test: gtest test_lastest_file.o

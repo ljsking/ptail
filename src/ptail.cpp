@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
-    fs = hdfsConnectNewInstance("tloghd01-2.nm.nhnsystem.com", 9000);
+    fs = hdfsConnectNewInstance("tloghd04-1.nm.nhnsystem.com", 9000);
     const char* readPath = argv[1];
     string fullpath = getLastFile(readPath);
     hdfsFile readFile = hdfsOpenFile(fs, fullpath.c_str(), O_RDONLY, 0, 0, 0);
@@ -104,11 +104,13 @@ int main(int argc, char **argv) {
     int totalSize = filesize-offset;
     hdfsCloseFile(fs, readFile);
 
+    int many_sleep = 0;
     while(1) {
         tOffset newOffset = tail(fullpath.c_str(), offset, buffer);
         offset = std::max(newOffset, offset);
-        if (-2 == newOffset) {
-            if (offset > ROTATE_SIZE) {
+        if ( -2 == newOffset ) {
+            if ( many_sleep > 30 || offset > ROTATE_SIZE ) {
+                many_sleep = 0;
                 string new_fullpath = getLastFile(readPath);
                 if (new_fullpath != "" && new_fullpath != fullpath) {
                     fullpath = new_fullpath;
@@ -116,7 +118,10 @@ int main(int argc, char **argv) {
                     continue;
                 }
             }
+            ++many_sleep;
             usleep(100000);
+        } else {
+            many_sleep = 0;
         }
     }
     delete [] buffer;
